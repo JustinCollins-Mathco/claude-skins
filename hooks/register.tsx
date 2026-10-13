@@ -442,8 +442,9 @@ reply width: ${lastColumns} columns`
     return replyRows(lookOf(ui, active, e.surface, copy), segments, e.viewport?.columns ?? 100, e.surface !== 'terminal' && 'Svg' in ui ? ui.Svg : undefined)
   })
 
-  // The terminal's spinner gets the skin's word with a shimmer; the desktop's keeps its
-  // word, which says what the step is doing, beside an animated icon.
+  // Both surfaces get the skin's word, picked once per turn from the engine's own so
+  // it holds while the row redraws. The terminal shimmers it; the desktop sets it
+  // beside an animated icon. A message that overrides the word is drawn as given.
   on('ui.render', { component: 'Spinner' }, async ($, e, next) => {
     const active = await activeSkin($)
 
@@ -451,15 +452,15 @@ reply width: ${lastColumns} columns`
       return next(e)
     }
 
+    const word = pick(active.skin.spinner, e.props.word) ?? e.props.word
+
     if (e.surface !== 'terminal') {
       const look = lookOf($.ui.resolve(e), active, e.surface)
 
       return look.svg === undefined
         ? next(e)
-        : desktopSpinnerRow(look, look.svg, e.props.mode, e.props.message ?? e.props.word)
+        : desktopSpinnerRow(look, look.svg, e.props.mode, e.props.message ?? word)
     }
-
-    const word = pick(active.skin.spinner, e.props.word) ?? e.props.word
 
     if (!active.prefs.shimmer || e.props.message !== null) {
       return next({ ...e, props: { ...e.props, word } })

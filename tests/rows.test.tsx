@@ -2,7 +2,9 @@ import type { On, RenderElement } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 
+import { pick } from '../hooks/format'
 import { widthOf } from '../hooks/markdown'
+import noir from '../hooks/themes/noir'
 
 const SURFACES = ['terminal', 'desktop'] as const
 
@@ -208,20 +210,30 @@ test('a terminal table sizes Korean, Chinese, Japanese and emoji cells to their 
   await ui.unmount()
 })
 
-test('the terminal spinner shimmers, the desktop one is an animated icon beside its step', async ($, on) => {
+test('the terminal spinner shimmers the skin’s word, the desktop sets it beside an animated icon', async ($, on) => {
   stubEngine(on)
 
-  const spinner = (surface: (typeof SURFACES)[number]) =>
-    ({ ...SITE, surface, component: 'Spinner', requestId: 'main', props: { word: 'Sauteing', message: null, suffix: '…', mode: 'responding' } }) as const
+  const spinner = (surface: (typeof SURFACES)[number], message: string | null = null) =>
+    ({ ...SITE, surface, component: 'Spinner', requestId: 'main', props: { word: 'Sauteing', message, suffix: '…', mode: 'responding' } }) as const
+  // The noir skin's word for this turn, the same pick on both surfaces.
+  const word = pick(noir.spinner, 'Sauteing') as string
+  expect(noir.spinner).toContain(word)
 
   const terminal = await $.ui.mount(spinner('terminal'))
-  expect(await terminal.find({ type: 'Text', text: /^⠋ .+…/ })).toBeDefined()
+  expect(await terminal.find({ type: 'Text', text: new RegExp(`^⠋ ${word}…`) })).toBeDefined()
   await terminal.unmount()
 
   const desktop = await $.ui.mount(spinner('desktop'))
   const icon = (await desktop.find({ type: 'Svg' })) as { props: { source: string } } | undefined
   expect(icon?.props.source).toContain('class="bar')
-  expect(await desktop.find({ type: 'Text', text: 'Sauteing' })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: word })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: 'Sauteing' })).toBeUndefined()
+  await desktop.unmount()
+
+  // A message that overrides the word is drawn as given on the desktop too.
+  const overridden = await $.ui.mount(spinner('desktop', 'Waiting for approval'))
+  expect(await overridden.find({ type: 'Text', text: 'Waiting for approval' })).toBeDefined()
+  await overridden.unmount()
 })
 
 test('the turn footer names the time in the skin’s words', async ($, on) => {
