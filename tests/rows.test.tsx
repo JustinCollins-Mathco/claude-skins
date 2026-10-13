@@ -236,6 +236,28 @@ test('the terminal spinner shimmers the skin’s word, the desktop sets it besid
   await overridden.unmount()
 })
 
+test('the spinner word is picked by the turn, so the desktop’s constant word still rotates', async ($, on) => {
+  stubEngine(on)
+  // The desktop's engine word is Working on every turn; the turn's start tells them apart.
+  let startedAt = 10_000
+  on('state.get', ($, e, next) => (e.plugin === 'skins' && e.key === 'startedAt' ? { value: { value: startedAt, version: 1 } } : next(e)))
+
+  const spinner = { ...SITE, surface: 'desktop', component: 'Spinner', requestId: 'main', props: { word: 'Working', message: null, suffix: '…', mode: 'thinking' } } as const
+  const first = pick(noir.spinner, '10000') as string
+  const second = pick(noir.spinner, '20000') as string
+  expect(first).not.toBe(second)
+
+  const one = await $.ui.mount(spinner)
+  expect(await one.find({ type: 'Text', text: first })).toBeDefined()
+  await one.unmount()
+
+  startedAt = 20_000
+  const two = await $.ui.mount(spinner)
+  expect(await two.find({ type: 'Text', text: second })).toBeDefined()
+  expect(await two.find({ type: 'Text', text: first })).toBeUndefined()
+  await two.unmount()
+})
+
 test('the turn footer names the time in the skin’s words', async ($, on) => {
   stubEngine(on)
 

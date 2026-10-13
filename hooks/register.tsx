@@ -442,9 +442,11 @@ reply width: ${lastColumns} columns`
     return replyRows(lookOf(ui, active, e.surface, copy), segments, e.viewport?.columns ?? 100, e.surface !== 'terminal' && 'Svg' in ui ? ui.Svg : undefined)
   })
 
-  // Both surfaces get the skin's word, picked once per turn from the engine's own so
-  // it holds while the row redraws. The terminal shimmers it; the desktop sets it
-  // beside an animated icon. A message that overrides the word is drawn as given.
+  // Both surfaces get the skin's word, picked once per turn so it holds while the
+  // row redraws: the seed is the turn's start, which the engine's word cannot be on
+  // the desktop (there it is the step's text, or Working every turn). Before the
+  // first turn the engine's word seeds it. The terminal shimmers the word; the
+  // desktop sets it beside an animated icon. A message that overrides it is drawn as given.
   on('ui.render', { component: 'Spinner' }, async ($, e, next) => {
     const active = await activeSkin($)
 
@@ -452,7 +454,8 @@ reply width: ${lastColumns} columns`
       return next(e)
     }
 
-    const word = pick(active.skin.spinner, e.props.word) ?? e.props.word
+    const startedAt = await read($, startedAtom)
+    const word = pick(active.skin.spinner, startedAt === 0 ? e.props.word : String(startedAt)) ?? e.props.word
 
     if (e.surface !== 'terminal') {
       const look = lookOf($.ui.resolve(e), active, e.surface)
@@ -467,7 +470,6 @@ reply width: ${lastColumns} columns`
     }
 
     const frame = await read($, frameAtom)
-    const startedAt = await read($, startedAtom)
     const elapsed = startedAt === 0 ? 0 : (await $.clock.now()) - startedAt
 
     return spinnerRow(lookOf($.ui.resolve(e), active, e.surface), word, frame, elapsed)
